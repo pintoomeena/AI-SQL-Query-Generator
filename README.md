@@ -1,149 +1,159 @@
 # 🗄️ AI SQL Query Generator
 
-An AI-powered SQL Query Generator that allows users to interact with a relational MySQL database using natural language.
+An AI-powered SQL analytics assistant that allows users to interact with a relational MySQL database using natural language.
 
-Instead of manually writing SQL queries, users can ask questions such as:
+Instead of manually writing SQL, users can ask questions such as:
 
-- "Show me all employees"
-- "What is the average salary of each department?"
-- "Which department has the highest average salary?"
-- "Which employees are working on more than one project?"
+- **Show me all employees**
+- **What is the average salary of each department?**
+- **Which department has the highest average salary?**
+- **Which employees are working on more than one project?**
 
-The application uses Gemini to convert natural language questions into SQL queries, validates the generated SQL, executes it on MySQL, and automatically attempts to repair SQL queries if execution errors occur.
+The application uses **Google Gemini** to convert natural-language questions into SQL, validates the generated query, executes it against MySQL, automatically repairs execution errors, explains the results, and generates basic visualizations.
 
 ---
 
 ## 🚀 Features
 
-### 1. Natural Language to SQL
+### 1. Natural Language → SQL
 
 Users can ask database questions in plain English.
 
-Example:
+**Example:**
 
-```text
-Which department has the highest average salary?
+> Which department has the highest average salary?
 
-The system generates an SQL query such as:
+Generated SQL:
 
+```sql
 SELECT d.name, AVG(e.salary) AS average_salary
 FROM departments d
 JOIN employees e ON d.id = e.department_id
 GROUP BY d.id, d.name
 ORDER BY average_salary DESC
 LIMIT 1;
+```
 
+### 2. Automatic Database Schema Extraction
 
-2. Automatic Database Schema Extraction
+The application dynamically extracts the MySQL schema using SQLAlchemy.
 
-The application automatically reads the MySQL database schema using SQLAlchemy.
+It identifies:
 
-It extracts:
+- Tables
+- Columns
+- Data types
+- Primary keys
+- Foreign keys
+- Table relationships
 
-Tables
-Columns
-Data types
-Primary keys
-Foreign keys
-Table relationships
+The extracted schema is provided to Gemini to improve SQL generation accuracy.
 
-This schema information is provided to Gemini so that SQL queries are generated according to the actual database structure.
+### 3. SQL Validation
 
-3. SQL Validation
+Generated SQL is validated using **SQLGlot** before execution.
 
-Generated SQL is validated using SQLGlot before execution.
+The system checks:
 
-The system checks that:
+- SQL syntax
+- Single-statement execution
+- `SELECT`-only queries
 
-SQL syntax is valid
-Only one SQL statement is provided
-Only SELECT queries are allowed
+For example, non-read queries such as:
 
-Non-read queries such as:
-
+```sql
 DELETE FROM employees;
+```
 
 are rejected.
 
+### 4. SQL Execution
 
-4. SQL Execution
+Validated queries are executed against MySQL using **SQLAlchemy**.
 
-Validated SQL queries are executed against the MySQL database using SQLAlchemy.
+Results are displayed in a structured Streamlit table.
 
-The results are displayed in a structured table inside the Streamlit application.
+### 5. Automatic SQL Error Repair
 
-5. Automatic SQL Error Repair
+If generated SQL fails during execution, the system sends the following information back to Gemini:
 
-If the generated SQL fails during execution, the application sends:
+- User question
+- Database schema
+- Generated SQL
+- MySQL error
 
-User question
-Database schema
-Generated SQL
-MySQL error
+Gemini then generates a corrected query and the system retries execution.
 
-back to Gemini.
-
-Gemini then generates a corrected SQL query and the system retries execution.
-
-Example:
+**Example:**
 
 Generated SQL:
+
+```sql
 SELECT full_name FROM employees;
+```
 
-Error:
+MySQL error:
+
+```text
 Unknown column 'full_name' in 'field list'
+```
 
-The repair system can generate:
+Corrected SQL:
 
+```sql
 SELECT name FROM employees;
-6. AI Result Explanation
+```
 
-After successful query execution, Gemini generates a short natural-language explanation of the result.
+### 6. AI Result Explanation
 
-This allows users to understand the output without manually interpreting the SQL result table.
+After successful execution, Gemini generates a concise natural-language explanation of the result.
 
-7. Data Visualization
+### 7. Data Visualization
 
-When the query returns suitable numeric and categorical data, the application automatically provides a visualization.
+When the returned data contains suitable numeric and categorical columns, the application automatically generates a basic visualization.
 
 For example:
 
-What is the average salary of each department?
+> What is the average salary of each department?
 
-The application can display the department-wise salary values along with a bar chart.
+The application can display department-wise salary averages together with a bar chart.
 
-8. Read-Only Query Protection
+### 8. Read-Only Query Protection
 
-The current application is designed to allow only SELECT queries.
+The current application allows only `SELECT` queries through SQL validation.
 
-This prevents generated queries such as:
+This blocks queries such as:
 
+```text
 INSERT
 UPDATE
 DELETE
 DROP
 ALTER
+```
 
-from being executed through the application.
+> **Production note:** A production deployment should also use dedicated read-only database credentials and stronger database-level restrictions.
 
-Note: For production deployment, stronger database-level read-only permissions and additional SQL restrictions should be implemented.
+---
 
-🏗️ Architecture
+## 🏗️ Architecture
+
+```text
                     ┌─────────────────────┐
-                    │       User          │
-                    │ Natural Language    │
+                    │        User         │
+                    │  Natural Language   │
                     └──────────┬──────────┘
                                │
                                ▼
                     ┌─────────────────────┐
                     │     Streamlit       │
-                    │     Frontend        │
+                    │      Frontend       │
                     └──────────┬──────────┘
                                │
                                ▼
                     ┌─────────────────────┐
-                    │   Query Service     │
-                    │  Workflow Manager   │
+                    │    Query Service    │
+                    │   Workflow Manager  │
                     └──────────┬──────────┘
                                │
                 ┌──────────────┴──────────────┐
@@ -151,30 +161,29 @@ Note: For production deployment, stronger database-level read-only permissions a
      ┌─────────────────────┐       ┌─────────────────────┐
      │   Schema Service    │       │    LLM Service      │
      │                     │       │                     │
-     │ Tables              │──────▶│ Gemini              │
-     │ Columns             │       │ Natural Language →  │
-     │ PKs / FKs           │       │ SQL                 │
+     │ • Tables            │──────▶│ • Gemini            │
+     │ • Columns           │       │ • Natural Language  │
+     │ • PKs / FKs         │       │   → SQL             │
      └─────────────────────┘       └──────────┬──────────┘
                                               │
                                               ▼
                                    ┌─────────────────────┐
-                                   │    SQL Service      │
+                                   │     SQL Service     │
                                    │                     │
-                                   │ SQL Cleaning        │
-                                   │ SQL Validation      │
-                                   │ SQL Execution       │
+                                   │ • Clean SQL         │
+                                   │ • Validate SQL      │
+                                   │ • Execute SQL       │
                                    └──────────┬──────────┘
                                               │
-                                      ┌───────┴───────┐
-                                      │               │
-                                   Success          Error
-                                      │               │
-                                      ▼               ▼
+                                     ┌────────┴────────┐
+                                     │                 │
+                                  Success            Error
+                                     │                 │
+                                     ▼                 ▼
                               ┌──────────────┐  ┌──────────────┐
                               │ MySQL Result │  │ SQL Repair   │
                               │              │  │ via Gemini   │
                               └──────┬───────┘  └──────┬───────┘
-                                     │                 │
                                      │                 │
                                      └────────┬────────┘
                                               ▼
@@ -182,70 +191,86 @@ Note: For production deployment, stronger database-level read-only permissions a
                                    │ Results + AI        │
                                    │ Explanation + Chart │
                                    └─────────────────────┘
-🗃️ Database Schema
+```
+
+---
+
+## 🗃️ Database Schema
 
 The project uses a relational MySQL database containing six related tables.
 
-Tables
-departments
+### `departments`
 
-Stores department information.
+| Column | Description |
+|---|---|
+| `id` | Primary key |
+| `name` | Department name |
+| `location` | Department location |
 
-id
-name
-location
-employees
+### `employees`
 
-Stores employee information.
+| Column | Description |
+|---|---|
+| `id` | Primary key |
+| `name` | Employee name |
+| `email` | Employee email |
+| `job_title` | Employee role |
+| `salary` | Current salary |
+| `department_id` | Foreign key to `departments.id` |
+| `joining_date` | Joining date |
+| `manager_id` | Self-referencing employee manager |
 
-id
-name
-email
-job_title
-salary
-department_id
-joining_date
-manager_id
-projects
+### `projects`
 
-Stores project information.
+| Column | Description |
+|---|---|
+| `id` | Primary key |
+| `name` | Project name |
+| `budget` | Project budget |
+| `status` | Project status |
+| `start_date` | Project start date |
+| `end_date` | Project end date |
 
-id
-name
-budget
-status
-start_date
-end_date
-employee_projects
+### `employee_projects`
 
 Many-to-many relationship between employees and projects.
 
-employee_id
-project_id
-role
-assigned_date
-performance_reviews
+| Column | Description |
+|---|---|
+| `employee_id` | Foreign key to `employees.id` |
+| `project_id` | Foreign key to `projects.id` |
+| `role` | Employee's project role |
+| `assigned_date` | Assignment date |
 
-Stores employee performance reviews.
+### `performance_reviews`
 
-id
-employee_id
-review_date
-rating
-comments
-salaries
+| Column | Description |
+|---|---|
+| `id` | Primary key |
+| `employee_id` | Foreign key to `employees.id` |
+| `review_date` | Review date |
+| `rating` | Performance rating |
+| `comments` | Review comments |
 
-Stores historical employee salary records.
+### `salaries`
 
-id
-employee_id
-salary
-effective_from
-🔗 Database Relationships
+Stores historical salary records.
+
+| Column | Description |
+|---|---|
+| `id` | Primary key |
+| `employee_id` | Foreign key to `employees.id` |
+| `salary` | Salary amount |
+| `effective_from` | Effective date |
+
+---
+
+## 🔗 Database Relationships
+
+```text
 departments
      │
-     │ 1
-     │
+     │ 1:N
      ▼
 employees
      │
@@ -254,140 +279,201 @@ employees
      │               ▼
      │        performance_reviews
      │
+     ├───────────────┐
+     │               │
+     │               ▼
+     │           salaries
+     │
      ▼
 employee_projects
      │
+     │ N:1
      ▼
 projects
+```
 
-employees
-     │
-     ▼
-salaries
+### Key Relationships
 
-Important relationships include:
-
+```text
 employees.department_id
         ↓
 departments.id
+```
+
+```text
 employee_projects.employee_id
         ↓
 employees.id
+```
+
+```text
 employee_projects.project_id
         ↓
 projects.id
+```
+
+```text
 performance_reviews.employee_id
         ↓
 employees.id
+```
+
+```text
 salaries.employee_id
         ↓
 employees.id
-🤖 AI Workflow
+```
 
-The main workflow is:
+---
 
+## 🤖 AI Workflow
+
+```text
 User Question
-      ↓
+      │
+      ▼
 Extract Database Schema
-      ↓
-Send Question + Schema to Gemini
-      ↓
+      │
+      ▼
+Question + Schema → Gemini
+      │
+      ▼
 Generate SQL
-      ↓
+      │
+      ▼
 Clean SQL
-      ↓
+      │
+      ▼
 Validate SQL
-      ↓
+      │
+      ▼
 Execute SQL
-      ↓
- ┌───────────────┐
- │               │
-Success         Error
- │               │
- ▼               ▼
-Results       Gemini SQL Repair
- │               │
- ▼               ▼
-AI Explanation  Retry
- │
- ▼
+      │
+      ├───────────────┐
+      │               │
+   Success           Error
+      │               │
+      ▼               ▼
+   Results       Gemini SQL Repair
+      │               │
+      ▼               ▼
+AI Explanation      Retry
+      │
+      ▼
 Visualization
-🔄 SQL Repair Loop
+```
 
-The system supports automatic SQL repair for execution errors.
+---
 
-For example, if Gemini generates:
+## 🔄 SQL Repair Loop
 
-SELECT full_name FROM employees;
+The application supports automatic repair of SQL execution errors.
 
-and MySQL returns:
+```text
+Generated SQL
+      │
+      ▼
+Execute Query
+      │
+      ├───────────────┐
+      │               │
+   Success           Error
+      │               │
+      ▼               ▼
+   Return       Send error + schema
+   Results          to Gemini
+                      │
+                      ▼
+                Correct SQL
+                      │
+                      ▼
+                  Retry Query
+```
 
-Unknown column 'full_name' in 'field list'
+The system supports a limited number of repair attempts to avoid unnecessary API usage.
 
-the system sends the error back to Gemini along with the schema.
+---
 
-Gemini can then generate:
+## 📊 Example Queries
 
-SELECT name FROM employees;
+### Basic Queries
 
-The corrected query is validated and executed again.
-
-The system currently supports a limited number of repair attempts to avoid unnecessary API usage.
-
-📊 Example Queries
-
-The application supports analytical queries such as:
-
-Basic Queries
+```text
 Show me all employees
 Show all projects
 List all departments
-Filtering
+```
+
+### Filtering
+
+```text
 Show employees with salary greater than 100000
 Show employees who joined after 2023
-Aggregation
+```
+
+### Aggregation
+
+```text
 What is the average salary of each department?
 What is the total salary paid by each department?
 How many employees are in each department?
-Ranking
+```
+
+### Ranking
+
+```text
 Which department has the highest average salary?
 Who is the highest paid employee?
 Which project has the highest budget?
-JOIN Queries
+```
+
+### JOIN Queries
+
+```text
 Show employees along with their department names
 Show employees working on each project
 Show employee names and their performance ratings
-Complex Analytical Queries
-Which employees have a performance rating above 4 and are working on more than one project?
+```
+
+### Complex Analytical Queries
+
+```text
+Which employees have a performance rating above 4
+and are working on more than one project?
+
 Which department has the highest average employee salary?
+
 Which projects have more than two employees assigned?
-🛠️ Tech Stack
-Frontend
-Streamlit
-Backend
-Python
-Database
-MySQL 8
-Database Connectivity
-SQLAlchemy
-PyMySQL
-AI
-Google Gemini API
-google-genai
-SQL Processing
-SQLGlot
-Configuration
-Python-dotenv
-📁 Project Structure
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Category | Technology |
+|---|---|
+| Frontend | Streamlit |
+| Backend | Python |
+| Database | MySQL 8 |
+| Database Connectivity | SQLAlchemy, PyMySQL |
+| AI | Google Gemini API |
+| AI SDK | `google-genai` |
+| SQL Processing | SQLGlot |
+| Configuration | `python-dotenv` |
+
+---
+
+## 📁 Project Structure
+
+```text
 AI_SQL_QUERY_GENERATOR/
 │
 ├── app.py
-│
+├── README.md
+├── requirements.txt
 ├── .env
 ├── .env.example
 ├── .gitignore
-├── README.md
-├── requirements.txt
 │
 ├── database/
 │   ├── connection.py
@@ -401,27 +487,46 @@ AI_SQL_QUERY_GENERATOR/
 │   └── __init__.py
 │
 └── venv/
-⚙️ Installation
-1. Clone the repository
-git clone <your-github-repository-url>
+```
 
-Move into the project directory:
+> `venv/` and `.env` are excluded from Git using `.gitignore`.
 
-cd AI_SQL_QUERY_GENERATOR
-2. Create a Virtual Environment
+---
+
+## ⚙️ Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/pintoomeena/AI-SQL-Query-Generator.git
+cd AI-SQL-Query-Generator
+```
+
+### 2. Create a Virtual Environment
+
+```bash
 python -m venv venv
+```
 
 Activate it on Windows:
 
+```powershell
 .\venv\Scripts\Activate.ps1
-3. Install Dependencies
+```
+
+### 3. Install Dependencies
+
+```bash
 pip install -r requirements.txt
-🔐 Environment Variables
+```
 
-Create a .env file in the project root.
+---
 
-Example:
+## 🔐 Environment Variables
 
+Create a `.env` file in the project root:
+
+```env
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
@@ -429,182 +534,225 @@ DB_PASSWORD=your_mysql_password
 DB_NAME=temp
 
 GEMINI_API_KEY=your_gemini_api_key
+```
 
-Do not commit the .env file to GitHub.
+**Never commit your actual `.env` file or API key to GitHub.**
 
-The repository includes .env.example as a template.
+The repository includes `.env.example` as a safe template.
 
-🗄️ Database Setup
+---
+
+## 🗄️ Database Setup
 
 Create the MySQL database:
 
+```sql
 CREATE DATABASE temp;
+```
 
-Then create the required tables:
+Create and populate the following tables:
 
+```text
 departments
 employees
 projects
 employee_projects
 performance_reviews
 salaries
+```
 
-Populate the tables with sample employee, department, project, salary, and performance data.
+The application dynamically extracts the database schema, so the schema does not need to be hardcoded inside the SQL-generation logic.
 
-The application dynamically extracts the schema, so the SQL generation system does not depend on a hardcoded schema definition.
+---
 
-▶️ Running the Application
+## ▶️ Running the Application
 
-Start Streamlit:
+Start the Streamlit application:
 
+```bash
 streamlit run app.py
+```
 
-The application will open in the browser.
+Then open the local URL displayed by Streamlit in your browser.
 
-You can then enter a natural-language question.
+Example question:
 
-Example:
-
+```text
 What is the average salary of each department?
+```
 
-The application will display:
+The application displays:
 
-Generated SQL
-AI explanation
-Query results
-Visualization when applicable
-Number of execution attempts
-🧪 Testing
+1. Generated SQL
+2. AI explanation
+3. Query results
+4. Visualization when applicable
+5. Number of execution attempts
+
+---
+
+## 🧪 Testing
 
 The project has been tested for:
 
-Database Connection
+### Database Connection
+
+```sql
 SELECT 1;
+```
 
-The MySQL connection successfully returns:
+Successfully verifies the MySQL connection.
 
-1
-SQL Validation
+### SQL Validation
 
-Invalid non-SELECT queries are rejected.
+Non-`SELECT` queries are rejected.
 
-Example:
-
+```sql
 DELETE FROM employees;
+```
 
-Result:
+Expected behavior:
 
+```text
 Only SELECT queries are allowed.
-SQL Syntax Validation
+```
 
-Malformed SQL is detected using SQLGlot.
+### SQL Syntax Validation
 
-SQL Execution Errors
+Malformed SQL is detected using SQLGlot before execution.
+
+### SQL Execution Errors
 
 Invalid column references are detected by MySQL and passed to the SQL repair workflow.
 
 Example:
 
+```sql
 SELECT full_name FROM employees;
+```
 
-can be repaired to:
+can be corrected to:
 
+```sql
 SELECT name FROM employees;
-Natural Language Queries
+```
 
-The system has been tested with:
+### Natural Language Queries
 
-Basic SELECT queries
-JOIN queries
-Aggregate queries
-GROUP BY queries
-HAVING queries
-Ranking queries
-Multi-table analytical queries
-📈 Current Capabilities
+Tested query categories include:
 
-The current version supports:
+- Basic `SELECT`
+- `JOIN`
+- Aggregation
+- `GROUP BY`
+- `HAVING`
+- Ranking
+- Multi-table analytical queries
 
-Natural-language database interaction
-Automatic schema extraction
-Gemini-powered SQL generation
-SQL validation
-MySQL execution
-Automatic SQL error repair
-AI-generated result explanations
-Basic automatic visualizations
-SELECT-only query protection
-Relational database queries
-Multi-table JOINs
-Aggregations and analytical SQL
-⚠️ Limitations
+---
 
-Although the application provides automatic SQL generation and repair, generated SQL can still be semantically incorrect while remaining syntactically valid.
+## 📈 Current Capabilities
 
-For example, a query may execute successfully but interpret a business question incorrectly.
+- Natural-language database interaction
+- Automatic database schema extraction
+- Gemini-powered SQL generation
+- SQL syntax validation
+- MySQL query execution
+- Automatic SQL error repair
+- AI-generated result explanations
+- Basic automatic visualizations
+- `SELECT`-only query protection
+- Relational database queries
+- Multi-table `JOIN`s
+- Aggregations and analytical SQL
 
-The current repair mechanism primarily handles SQL execution errors, not all forms of semantic correctness.
+---
 
-For production deployment, additional safeguards would be recommended, including:
+## ⚠️ Limitations
 
-Dedicated read-only database credentials
-Stronger SQL AST validation
-Query timeout limits
-Row/result limits
-Query cost controls
-Better semantic validation
-Logging and monitoring
-Authentication and authorization
-🔮 Future Improvements
+The application can generate SQL that is syntactically valid but semantically incorrect.
 
-Potential future improvements include:
+For example, a query may execute successfully while still interpreting a business question incorrectly.
 
-Conversational multi-turn database queries
-Query result caching
-More advanced chart recommendations
-Power BI / Tableau integration
-Database upload and connection management
-Support for PostgreSQL
-Support for SQLite
-Query performance analysis
-SQL query optimization
-Better semantic SQL validation
-User authentication
-Query execution limits
-Production-grade read-only database access
-More advanced data visualizations
-🎯 Project Goal
+The current repair mechanism primarily handles **SQL execution errors**, not every form of semantic error.
+
+For production deployment, additional safeguards would be recommended:
+
+- Dedicated read-only database credentials
+- Stronger SQL AST validation
+- Query timeout limits
+- Result-size limits
+- Query cost controls
+- Semantic validation
+- Logging and monitoring
+- Authentication and authorization
+
+---
+
+## 🔮 Future Improvements
+
+- Conversational multi-turn database queries
+- Query result caching
+- Improved chart recommendations
+- Power BI / Tableau integration
+- Database connection management
+- PostgreSQL support
+- SQLite support
+- Query performance analysis
+- SQL query optimization
+- Improved semantic SQL validation
+- User authentication
+- Query execution limits
+- Production-grade read-only database access
+- Advanced data visualizations
+
+---
+
+## 🎯 Project Goal
 
 The goal of this project is to make relational databases easier to interact with by allowing users to ask analytical questions using natural language.
 
 The project combines:
 
-Natural Language Processing
-        +
+```text
+Natural Language
+       +
 Large Language Models
-        +
+       +
 SQL
-        +
+       +
 Relational Databases
-        +
+       +
 Data Analytics
-        +
+       +
 Data Visualization
+```
 
-This makes the system useful as an AI-powered SQL analytics assistant for users who may not be comfortable writing SQL manually.
+This makes the system useful as an **AI-powered SQL analytics assistant** for users who may not be comfortable writing SQL manually.
 
-👨‍💻 Author
+---
 
-Prince Meena
+## ⭐ Project Highlights
+
+- Built an end-to-end AI-powered Text-to-SQL system
+- Integrated Gemini with a relational MySQL database
+- Implemented schema-aware SQL generation
+- Added SQL validation using SQLGlot
+- Implemented automatic SQL error repair
+- Added AI-powered result explanations
+- Added automatic result visualization
+- Designed the system around relational database relationships and analytical SQL
+
+---
+
+## 👨‍💻 Author
+
+**Prince Meena**
 
 AI / Software Engineering Enthusiast
 
-⭐ Project Highlights
-Built an end-to-end AI-powered Text-to-SQL system
-Integrated Gemini with a relational MySQL database
-Implemented automatic schema-aware SQL generation
-Added SQL validation using SQLGlot
-Implemented automatic SQL error repair
-Added AI-powered result explanations
-Added automatic result visualization
-Designed the system around relational database relationships and analytical SQL
+---
+
+## 🔗 Repository
+
+[GitHub Repository](https://github.com/pintoomeena/AI-SQL-Query-Generator)
