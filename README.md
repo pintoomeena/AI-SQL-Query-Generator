@@ -747,7 +747,7 @@ This makes the system useful as an **AI-powered SQL analytics assistant** for us
 
 ## 👨‍💻 Author
 
-**Prince Meena**
+**Pintoo Meena**
 
 AI / Software Engineering Enthusiast
 
