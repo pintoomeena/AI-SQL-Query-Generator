@@ -18,21 +18,47 @@ client = genai.Client(
 
 
 QUESTIONS = [
+    # Basic SELECT / Filtering
     "Show me all employees.",
     "Show the names and salaries of all employees.",
-    "Which employees work in the Engineering department?",
-    "What is the average salary of each department?",
-    "Which department has the highest average salary?",
     "Show employees earning more than 100000.",
-    "How many employees are in each department?",
-    "Show the projects that are currently active.",
-    "Which employees are working on more than one project?",
+    "Show employees earning less than 80000.",
+    "Show all currently active projects.",
+
+    # JOIN queries
+    "Which employees work in the Engineering department?",
     "Show the names of employees along with their department names.",
+    "Show all employees working in the Data Science department.",
+    "Show employees and the projects they are assigned to.",
+    "Show each project along with the names of employees working on it.",
+
+    # Aggregation
+    "What is the average salary of each department?",
+    "How many employees are in each department?",
     "What is the highest salary in the company?",
-    "Which employees have a performance rating above 4?",
-    "Show the number of employees working on each project.",
+    "What is the lowest salary in the company?",
+    "What is the average performance rating for each department?",
+
+    # GROUP BY / HAVING
+    "Which employees are working on more than one project?",
     "Which department has the highest number of employees?",
-    "Show the average performance rating for each department."
+    "Which projects have more than two employees assigned to them?",
+    "Which departments have an average salary greater than 100000?",
+    "Which employees have a performance rating above 4?",
+
+    # Ranking / Ordering
+    "Which department has the highest average salary?",
+    "Who are the top 5 highest-paid employees?",
+    "Which project has the highest budget?",
+    "Show the three employees with the highest salaries.",
+    "Which department has the lowest average salary?",
+
+    # Performance / Employee analysis
+    "Show employees with a performance rating below 3.",
+    "Show the employee with the highest performance rating.",
+    "Show the average performance rating of all employees.",
+    "Which employees have received more than one performance review?",
+    "Show employees who are working on at least one project."
 ]
 
 
@@ -82,6 +108,8 @@ def run_evaluation():
         print(f"Question {i}/{total}")
         print(question)
 
+        generated_sql = None
+
         try:
             generated_sql = generate_sql(question)
 
@@ -107,7 +135,7 @@ def run_evaluation():
 
             results.append({
                 "question": question,
-                "sql": generated_sql if "generated_sql" in locals() else None,
+                "sql": generated_sql,
                 "execution_success": False,
                 "error": str(e)
             })
