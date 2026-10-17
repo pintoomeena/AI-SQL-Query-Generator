@@ -1,5 +1,15 @@
-venv/
+
 .env
+venv/
+.venv/
 __pycache__/
 *.pyc
-.streamlit/secrets.toml
+# Database backups
+Dump*.sql
+*.sql
+
+# Generated evaluation results
+evaluation_results.json
+
+# Environment secrets
+.env
