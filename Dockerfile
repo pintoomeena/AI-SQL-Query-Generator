@@ -12,9 +12,9 @@ COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir -r requirements.txt \
     && python -m pip install --no-cache-dir --upgrade --force-reinstall \
-       "wheel==0.46.2" \
-       "jaraco.context==6.1.0" \
-    && python -m pip show wheel jaraco.context
+       "setuptools>=82.0.0" \
+       "wheel>=0.46.2" \
+       "jaraco.context>=6.1.0"
 
 COPY . .
 
