@@ -4,3 +4,4 @@ pymysql
 python-dotenv
 google-genai
 sqlglot
+psycopg[binary]
